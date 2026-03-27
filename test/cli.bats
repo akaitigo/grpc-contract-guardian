@@ -36,3 +36,15 @@ teardown() {
     run "$TOOL" 2>&1
     [ "$status" -eq 1 ]
 }
+
+# --- コマンド一覧 ---
+
+@test "usageにcheckコマンドが含まれる" {
+    run "$TOOL" 2>&1
+    [[ "$output" == *"check"* ]]
+}
+
+@test "usageにgraphコマンドが含まれる" {
+    run "$TOOL" 2>&1
+    [[ "$output" == *"graph"* ]]
+}
