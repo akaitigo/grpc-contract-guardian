@@ -1,9 +1,4 @@
 #!/usr/bin/env bats
-# =============================================================================
-# grpc-contract-guardian CLI E2E テスト（bats-core）
-# =============================================================================
-
-# --- セットアップ ---
 
 setup() {
     TOOL="./bin/guardian"
@@ -14,37 +9,55 @@ teardown() {
     rm -rf "$TEST_TEMP"
 }
 
-# --- ヘルプ・バージョン ---
-
-@test "--version でバージョンが表示される" {
-    run "$TOOL" --version
+@test "version コマンドでバージョンが表示される" {
+    run "$TOOL" version
     [ "$status" -eq 0 ]
     [[ "$output" == *"guardian"* ]]
 }
 
-# --- 引数バリデーション ---
-
-@test "引数なしで実行するとusageが表示され終了コード1" {
-    run "$TOOL"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"Usage"* ]]
-}
-
-# --- 出力制御 ---
-
-@test "エラーメッセージがstderrに出力される" {
-    run "$TOOL" 2>&1
-    [ "$status" -eq 1 ]
-}
-
-# --- コマンド一覧 ---
-
-@test "usageにcheckコマンドが含まれる" {
-    run "$TOOL" 2>&1
+@test "--help でusageが表示される" {
+    run "$TOOL" --help
+    [ "$status" -eq 0 ]
     [[ "$output" == *"check"* ]]
+    [[ "$output" == *"graph"* ]]
+    [[ "$output" == *"version"* ]]
 }
 
-@test "usageにgraphコマンドが含まれる" {
-    run "$TOOL" 2>&1
-    [[ "$output" == *"graph"* ]]
+@test "check --help でフラグ一覧が表示される" {
+    run "$TOOL" check --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--against"* ]]
+    [[ "$output" == *"--format"* ]]
+    [[ "$output" == *"--pr"* ]]
+    [[ "$output" == *"--proto-root"* ]]
+}
+
+@test "graph --help でフラグ一覧が表示される" {
+    run "$TOOL" graph --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--output"* ]]
+    [[ "$output" == *"--proto-root"* ]]
+}
+
+@test "graph --output text でtestdataのグラフが出力される" {
+    run "$TOOL" graph --proto-root testdata --output text
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"UserService"* ]]
+}
+
+@test "graph --output dot でDOT形式が出力される" {
+    run "$TOOL" graph --proto-root testdata --output dot
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"digraph"* ]]
+    [[ "$output" == *"UserService"* ]]
+}
+
+@test "graph --output invalid でエラーが返る" {
+    run "$TOOL" graph --proto-root testdata --output invalid
+    [ "$status" -ne 0 ]
+}
+
+@test "存在しないサブコマンドでエラー" {
+    run "$TOOL" nonexistent
+    [ "$status" -ne 0 ]
 }
