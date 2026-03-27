@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "progress.json — セッション終了時進捗記録",
+  "description": "各セッション終了時にコミットするJSON。何をしたかの履歴。",
+  "type": "object",
+  "required": ["project", "sessions"],
+  "properties": {
+    "project": {
+      "type": "string"
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["session_id", "started_at", "ended_at", "stage", "summary", "commits"],
+        "properties": {
+          "session_id": { "type": "string" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "ended_at": { "type": "string", "format": "date-time" },
+          "stage": {
+            "type": "string",
+            "enum": ["launch", "scaffold", "build", "harden", "ship", "harvest"]
+          },
+          "summary": { "type": "string" },
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["hash", "message"],
+              "properties": {
+                "hash": { "type": "string" },
+                "message": { "type": "string" }
+              }
+            }
+          },
+          "files_changed": { "type": "array", "items": { "type": "string" } },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "lint": { "type": "string", "enum": ["pass", "fail", "skip"] },
+              "test": { "type": "string", "enum": ["pass", "fail", "skip"] },
+              "typecheck": { "type": "string", "enum": ["pass", "fail", "skip"] },
+              "e2e": { "type": "string", "enum": ["pass", "fail", "skip"] }
+            }
+          },
+          "blockers": { "type": "array", "items": { "type": "string" } },
+          "next_action": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

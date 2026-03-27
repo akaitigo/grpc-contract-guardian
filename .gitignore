@@ -1,0 +1,45 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test
+coverage.out
+*.test
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Credentials
+credentials.json
+secrets.yml
+secrets.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Session backups
+.session-backups/
+CONTEXT.backup.json
+progress.backup.json
+
+# Go
+vendor/

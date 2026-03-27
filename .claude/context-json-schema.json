@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CONTEXT.json — セッション間状態管理",
+  "description": "Claude Codeセッション間で状態を引き継ぐためのスキーマ。Git管理し、セッション開始時に読み込み、終了時に更新する。",
+  "type": "object",
+  "required": ["project", "current_stage", "goal"],
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "プロジェクト名"
+    },
+    "current_stage": {
+      "type": "string",
+      "enum": ["launch", "scaffold", "build", "harden", "ship", "harvest"],
+      "description": "現在のプロジェクトステージ"
+    },
+    "goal": {
+      "type": "string",
+      "description": "現在のマイルストーンゴール（1文）"
+    },
+    "accepted_scenarios": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "受け入れ済みのユーザーシナリオ一覧"
+    },
+    "files_touched": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "直近セッションで変更したファイルパス一覧"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "summary": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["proposed", "accepted", "rejected", "superseded"]
+          }
+        }
+      }
+    },
+    "open_risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "last_checks": {
+      "type": "object",
+      "properties": {
+        "test": { "type": "string", "enum": ["pass", "fail", "skip"] },
+        "lint": { "type": "string", "enum": ["pass", "fail", "skip"] },
+        "typecheck": { "type": "string", "enum": ["pass", "fail", "skip"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "next_best_action": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

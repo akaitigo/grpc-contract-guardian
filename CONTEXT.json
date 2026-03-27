@@ -1,0 +1,29 @@
+{
+  "project": "grpc-contract-guardian",
+  "current_stage": "scaffold",
+  "goal": "MVP基盤構築: CI/CD、Proto解析エンジン、Breaking Change検出、レポーター、CLIの5つのIssueを完了する",
+  "accepted_scenarios": [
+    "guardian check --against main でbreaking changeとその影響範囲がテキスト出力される",
+    "guardian check --against main --format github --pr 123 でPRコメントが投稿される",
+    "guardian graph でサービス依存グラフがテキストまたはDOT形式で出力される"
+  ],
+  "files_touched": [],
+  "decisions": [
+    {
+      "id": "ADR-001",
+      "summary": "Go + CLI アーキテクチャの採用（cobra, シングルバイナリ配布）",
+      "status": "accepted"
+    }
+  ],
+  "open_risks": [
+    "protocompileライブラリのAPIが安定版かどうか未確認",
+    "buf breakingの出力フォーマットがバージョン間で変わる可能性"
+  ],
+  "last_checks": {
+    "test": "skip",
+    "lint": "skip",
+    "typecheck": "skip",
+    "timestamp": "2026-03-27T00:00:00Z"
+  },
+  "next_best_action": "Issue #1 (CI/CD基盤) から着手し、golangci-lint + go test のCIを構築する"
+}
