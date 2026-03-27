@@ -13,16 +13,16 @@ import (
 type ChangeCategory string
 
 const (
-	CategoryFieldRemoved          ChangeCategory = "FIELD_REMOVED"
-	CategoryFieldTypeChanged      ChangeCategory = "FIELD_TYPE_CHANGED"
-	CategoryFieldReserved         ChangeCategory = "FIELD_RESERVED"
-	CategoryServiceRemoved        ChangeCategory = "SERVICE_REMOVED"
-	CategoryMethodRemoved         ChangeCategory = "METHOD_REMOVED"
+	CategoryFieldRemoved           ChangeCategory = "FIELD_REMOVED"
+	CategoryFieldTypeChanged       ChangeCategory = "FIELD_TYPE_CHANGED"
+	CategoryFieldReserved          ChangeCategory = "FIELD_RESERVED"
+	CategoryServiceRemoved         ChangeCategory = "SERVICE_REMOVED"
+	CategoryMethodRemoved          ChangeCategory = "METHOD_REMOVED"
 	CategoryMethodSignatureChanged ChangeCategory = "METHOD_SIGNATURE_CHANGED"
-	CategoryMessageRemoved        ChangeCategory = "MESSAGE_REMOVED"
-	CategoryEnumRemoved           ChangeCategory = "ENUM_REMOVED"
-	CategoryEnumValueRemoved      ChangeCategory = "ENUM_VALUE_REMOVED"
-	CategoryUnknown               ChangeCategory = "UNKNOWN"
+	CategoryMessageRemoved         ChangeCategory = "MESSAGE_REMOVED"
+	CategoryEnumRemoved            ChangeCategory = "ENUM_REMOVED"
+	CategoryEnumValueRemoved       ChangeCategory = "ENUM_VALUE_REMOVED"
+	CategoryUnknown                ChangeCategory = "UNKNOWN"
 )
 
 // Severity indicates the impact level of a breaking change.
@@ -37,12 +37,12 @@ const (
 // BreakingChange represents a single breaking change detected by buf.
 type BreakingChange struct {
 	File           string
-	Line           int
-	Column         int
 	Category       ChangeCategory
 	Severity       Severity
 	Description    string
 	AffectedEntity string
+	Line           int
+	Column         int
 }
 
 // BreakingReport is the structured result of parsing buf breaking output.

@@ -11,9 +11,9 @@ linters:
   enable:
     # バグ検出
     - bodyclose
+    - copyloopvar
     - durationcheck
     - errcheck
-    - exportloopref
     - govet
     - nilerr
     - noctx
@@ -52,7 +52,7 @@ linters:
     - nestif
 
     # テスト
-    - tenv
+    - usetesting
     - tparallel
 
 linters-settings:
