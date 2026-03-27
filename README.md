@@ -2,6 +2,35 @@
 
 gRPC/Proto定義の後方互換性チェック + 影響範囲可視化CLI。
 
+## Demo
+
+```
+$ guardian graph --proto-root testdata --output text
+
+[SERVICE] UserService
+  -> example.user.v1.GetUserRequest (input:GetUser)
+  -> example.user.v1.GetUserResponse (output:GetUser)
+  -> example.user.v1.ListUsersRequest (input:ListUsers)
+  -> example.user.v1.ListUsersResponse (output:ListUsers)
+```
+
+```
+$ guardian check --against main --dry-run
+
+=== Breaking Change Impact Report ===
+Total: 2 breaking change(s)
+
+  HIGH:   1
+  MEDIUM: 1
+
+--- Details ---
+
+1. [FIELD_REMOVED] user/v1/user.proto:10
+   Previously present field "5" with name "email" on message "User" was deleted.
+   Affected services: UserService
+   Path: example.v1.GetUserResponse -[field:user]-> example.v1.User
+```
+
 ## Features
 
 - **Breaking Change検出**: `buf breaking` の結果をパースし、人間可読な形式で整形
