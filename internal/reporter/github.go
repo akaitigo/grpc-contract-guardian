@@ -18,6 +18,7 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 	if _, err := fmt.Fprintln(&body, commentMarker); err != nil {
 		return "", err
 	}
+
 	if err := WriteImpactGitHub(&body, report); err != nil {
 		return "", fmt.Errorf("generating report: %w", err)
 	}
@@ -29,10 +30,7 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 	}
 
 	// Check for existing guardian comment
-	existingID, err := findExistingComment(owner, repo, prNumber)
-	if err != nil {
-		return "", fmt.Errorf("checking existing comments: %w", err)
-	}
+	existingID := findExistingComment(owner, repo, prNumber)
 
 	if existingID != "" {
 		return commentBody, updateComment(owner, repo, existingID, commentBody)
@@ -41,40 +39,43 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 	return commentBody, createComment(owner, repo, prNumber, commentBody)
 }
 
-func findExistingComment(owner, repo string, prNumber int) (string, error) {
-	cmd := exec.Command("gh", "api",
+func findExistingComment(owner, repo string, prNumber int) string {
+	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
-		"--jq", fmt.Sprintf(`.[] | select(.body | contains("%s")) | .id`, commentMarker),
+		"--jq", fmt.Sprintf(`.[] | select(.body | contains(%q)) | .id`, commentMarker),
 	)
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", nil // not found is OK
+		return "" // not found is OK
 	}
 
-	id := strings.TrimSpace(string(out))
-	return id, nil
+	return strings.TrimSpace(string(out))
 }
 
 func createComment(owner, repo string, prNumber int, body string) error {
-	cmd := exec.Command("gh", "api",
+	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"-f", fmt.Sprintf("body=%s", body),
 	)
+
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("creating comment: %w\n%s", err, out)
 	}
+
 	return nil
 }
 
 func updateComment(owner, repo, commentID, body string) error {
-	cmd := exec.Command("gh", "api",
+	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
 		fmt.Sprintf("repos/%s/%s/issues/comments/%s", owner, repo, commentID),
 		"-X", "PATCH",
 		"-f", fmt.Sprintf("body=%s", body),
 	)
+
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("updating comment: %w\n%s", err, out)
 	}
+
 	return nil
 }

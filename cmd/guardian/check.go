@@ -96,7 +96,7 @@ func newCheckCmd() *cobra.Command {
 }
 
 func runBufBreaking(against, protoRoot string) (string, error) {
-	cmd := exec.Command("buf", "breaking", protoRoot, "--against", fmt.Sprintf(".git#branch=%s", against))
+	cmd := exec.Command("buf", "breaking", protoRoot, "--against", fmt.Sprintf(".git#branch=%s", against)) // #nosec G204 -- arguments from trusted CLI flags
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		// buf breaking returns exit code 1 when breaking changes are found

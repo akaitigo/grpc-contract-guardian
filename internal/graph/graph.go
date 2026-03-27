@@ -49,6 +49,7 @@ func (g *DependencyGraph) AddNode(node Node) {
 			return
 		}
 	}
+
 	g.Nodes = append(g.Nodes, node)
 }
 
@@ -62,6 +63,7 @@ func (g *DependencyGraph) WriteDOT(w io.Writer) error {
 	if _, err := fmt.Fprintln(w, "digraph dependencies {"); err != nil {
 		return err
 	}
+
 	if _, err := fmt.Fprintln(w, "  rankdir=LR;"); err != nil {
 		return err
 	}
@@ -71,6 +73,7 @@ func (g *DependencyGraph) WriteDOT(w io.Writer) error {
 		if n.Kind == "message" {
 			shape = "ellipse"
 		}
+
 		if _, err := fmt.Fprintf(w, "  %q [label=%q shape=%s];\n", n.ID, n.Label, shape); err != nil {
 			return err
 		}
@@ -105,6 +108,7 @@ func (g *DependencyGraph) WriteText(w io.Writer) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -118,56 +122,60 @@ func BuildFromProtoFiles(files []*analyzer.ProtoFile) *DependencyGraph {
 			prefix += "."
 		}
 
-		// Add message nodes
-		for _, msg := range pf.Messages {
-			g.AddNode(Node{
-				ID:    prefix + msg.Name,
-				Kind:  "message",
-				Label: msg.Name,
-			})
-
-			// Add edges for message-type fields
-			for _, f := range msg.Fields {
-				if isMessageType(f.Type) {
-					target := f.Type
-					if !strings.Contains(target, ".") {
-						target = prefix + target
-					}
-					g.AddEdge(Edge{
-						From:  prefix + msg.Name,
-						To:    target,
-						Label: "field:" + f.Name,
-					})
-				}
-			}
-		}
-
-		// Add service nodes and method edges
-		for _, svc := range pf.Services {
-			svcID := prefix + svc.Name
-			g.AddNode(Node{
-				ID:    svcID,
-				Kind:  "service",
-				Label: svc.Name,
-			})
-
-			for _, m := range svc.Methods {
-				inputID := m.InputType
-				if !strings.Contains(inputID, ".") {
-					inputID = prefix + inputID
-				}
-				outputID := m.OutputType
-				if !strings.Contains(outputID, ".") {
-					outputID = prefix + outputID
-				}
-
-				g.AddEdge(Edge{From: svcID, To: inputID, Label: "input:" + m.Name})
-				g.AddEdge(Edge{From: svcID, To: outputID, Label: "output:" + m.Name})
-			}
-		}
+		addMessageNodes(g, pf, prefix)
+		addServiceNodes(g, pf, prefix)
 	}
 
 	return g
+}
+
+func addMessageNodes(g *DependencyGraph, pf *analyzer.ProtoFile, prefix string) {
+	for _, msg := range pf.Messages {
+		g.AddNode(Node{
+			ID:    prefix + msg.Name,
+			Kind:  "message",
+			Label: msg.Name,
+		})
+
+		for _, f := range msg.Fields {
+			if !isMessageType(f.Type) {
+				continue
+			}
+
+			target := resolveType(f.Type, prefix)
+			g.AddEdge(Edge{
+				From:  prefix + msg.Name,
+				To:    target,
+				Label: "field:" + f.Name,
+			})
+		}
+	}
+}
+
+func addServiceNodes(g *DependencyGraph, pf *analyzer.ProtoFile, prefix string) {
+	for _, svc := range pf.Services {
+		svcID := prefix + svc.Name
+		g.AddNode(Node{
+			ID:    svcID,
+			Kind:  "service",
+			Label: svc.Name,
+		})
+
+		for _, m := range svc.Methods {
+			inputID := resolveType(m.InputType, prefix)
+			outputID := resolveType(m.OutputType, prefix)
+			g.AddEdge(Edge{From: svcID, To: inputID, Label: "input:" + m.Name})
+			g.AddEdge(Edge{From: svcID, To: outputID, Label: "output:" + m.Name})
+		}
+	}
+}
+
+func resolveType(t, prefix string) string {
+	if !strings.Contains(t, ".") {
+		return prefix + t
+	}
+
+	return t
 }
 
 // isMessageType returns true if the type is not a protobuf primitive.
@@ -178,5 +186,5 @@ func isMessageType(t string) bool {
 		"fixed32": true, "fixed64": true, "sfixed32": true, "sfixed64": true,
 		"bool": true, "string": true, "bytes": true,
 	}
-	return !primitives[t] && len(t) > 0
+	return !primitives[t] && t != ""
 }
