@@ -106,8 +106,9 @@ func TestParseOutput_EntityExtraction(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if report.Changes[0].AffectedEntity != "5" {
-		t.Errorf("entity = %q, want %q", report.Changes[0].AffectedEntity, "5")
+	// Field numbers (pure digits like "5") should be skipped; first non-numeric quoted value is "email"
+	if report.Changes[0].AffectedEntity != "email" {
+		t.Errorf("entity = %q, want %q", report.Changes[0].AffectedEntity, "email")
 	}
 }
 

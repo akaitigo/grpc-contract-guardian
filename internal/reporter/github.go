@@ -9,6 +9,29 @@ import (
 
 const commentMarker = "<!-- grpc-contract-guardian -->"
 
+// CommandRunner abstracts external command execution for testability.
+type CommandRunner interface {
+	// Run executes a command and returns its combined output.
+	Run(name string, args ...string) ([]byte, error)
+}
+
+// ExecCommandRunner is the default CommandRunner that delegates to os/exec.
+type ExecCommandRunner struct{}
+
+// Run executes a command using os/exec.
+func (r *ExecCommandRunner) Run(name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...) // #nosec G204 -- arguments from trusted CLI flags
+	return cmd.CombinedOutput()
+}
+
+// defaultRunner is the package-level runner, replaceable for testing.
+var defaultRunner CommandRunner = &ExecCommandRunner{}
+
+// SetCommandRunner replaces the default command runner (useful for testing).
+func SetCommandRunner(r CommandRunner) {
+	defaultRunner = r
+}
+
 // PostToGitHubPR posts the impact report as a PR comment.
 // If a previous guardian comment exists, it updates it instead of creating a new one.
 // Set dryRun=true to return the comment body without posting.
@@ -40,12 +63,10 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 }
 
 func findExistingComment(owner, repo string, prNumber int) string {
-	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
+	out, err := defaultRunner.Run("gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"--jq", fmt.Sprintf(`.[] | select(.body | contains(%q)) | .id`, commentMarker),
 	)
-
-	out, err := cmd.Output()
 	if err != nil {
 		return "" // not found is OK
 	}
@@ -54,12 +75,11 @@ func findExistingComment(owner, repo string, prNumber int) string {
 }
 
 func createComment(owner, repo string, prNumber int, body string) error {
-	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
+	out, err := defaultRunner.Run("gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"-f", fmt.Sprintf("body=%s", body),
 	)
-
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if err != nil {
 		return fmt.Errorf("creating comment: %w\n%s", err, out)
 	}
 
@@ -67,13 +87,12 @@ func createComment(owner, repo string, prNumber int, body string) error {
 }
 
 func updateComment(owner, repo, commentID, body string) error {
-	cmd := exec.Command("gh", "api", // #nosec G204 -- arguments from trusted CLI flags
+	out, err := defaultRunner.Run("gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/comments/%s", owner, repo, commentID),
 		"-X", "PATCH",
 		"-f", fmt.Sprintf("body=%s", body),
 	)
-
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if err != nil {
 		return fmt.Errorf("updating comment: %w\n%s", err, out)
 	}
 

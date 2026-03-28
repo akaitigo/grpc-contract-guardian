@@ -187,16 +187,36 @@ func classifyChange(message string) ChangeCategory {
 
 // extractEntity attempts to extract the affected proto entity name from the message.
 // buf messages typically contain quoted entity names like `"MyService.MyMethod"`.
+// Field numbers (pure digits) are skipped to find the actual entity name.
 func extractEntity(message string) string {
-	start := strings.Index(message, "\"")
-	if start == -1 {
-		return ""
+	remaining := message
+	for {
+		start := strings.Index(remaining, "\"")
+		if start == -1 {
+			return ""
+		}
+		end := strings.Index(remaining[start+1:], "\"")
+		if end == -1 {
+			return ""
+		}
+		candidate := remaining[start+1 : start+1+end]
+
+		// Skip pure numeric values (field numbers)
+		if candidate != "" && !isNumeric(candidate) {
+			return candidate
+		}
+		remaining = remaining[start+1+end+1:]
 	}
-	end := strings.Index(message[start+1:], "\"")
-	if end == -1 {
-		return ""
+}
+
+// isNumeric returns true if s consists entirely of digit characters.
+func isNumeric(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
 	}
-	return message[start+1 : start+1+end]
+	return s != ""
 }
 
 // CountByCategory returns the number of changes per category.

@@ -37,6 +37,14 @@ Total: 2 breaking change(s)
 - **影響範囲可視化**: サービス依存グラフから、breaking changeがどのサービスに波及するかを表示
 - **PRコメント自動投稿**: GitHub PRにbreaking changeレポートを自動投稿
 
+## Prerequisites
+
+- **Go** 1.23+
+- **buf** CLI ([installation guide](https://buf.build/docs/installation)) - required for breaking change detection
+- **gh** CLI ([installation guide](https://cli.github.com/)) - required for `--format github` PR comment posting
+
+> **Note**: guardian parses the text output of `buf breaking`. If buf changes its output format in future versions, parsing may need to be updated. This is tracked as a known risk.
+
 ## Quick Start
 
 ```bash

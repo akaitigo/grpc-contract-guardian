@@ -31,5 +31,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 install: build
-	cp $(BUILD_DIR)/$(BINARY_NAME) $(GOPATH)/bin/$(BINARY_NAME) 2>/dev/null || \
-	cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)
+	@INSTALL_DIR="$${GOPATH:-$$(go env GOPATH)}/bin"; \
+	mkdir -p "$$INSTALL_DIR" && \
+	cp $(BUILD_DIR)/$(BINARY_NAME) "$$INSTALL_DIR/$(BINARY_NAME)" && \
+	echo "Installed to $$INSTALL_DIR/$(BINARY_NAME)"

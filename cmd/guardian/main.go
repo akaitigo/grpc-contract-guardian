@@ -17,9 +17,10 @@ func main() {
 
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "guardian",
-		Short: "gRPC/Proto backward compatibility checker + impact visualizer",
-		Long:  "guardian analyzes .proto files for backward compatibility and visualizes the impact of breaking changes across service dependencies.",
+		Use:     "guardian",
+		Short:   "gRPC/Proto backward compatibility checker + impact visualizer",
+		Long:    "guardian analyzes .proto files for backward compatibility and visualizes the impact of breaking changes across service dependencies.",
+		Version: version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

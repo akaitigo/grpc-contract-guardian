@@ -33,23 +33,24 @@ type Edge struct {
 
 // DependencyGraph holds the service dependency graph.
 type DependencyGraph struct {
-	Nodes []Node
-	Edges []Edge
+	nodeMap map[string]bool
+	Nodes   []Node
+	Edges   []Edge
 }
 
 // NewGraph creates an empty dependency graph.
 func NewGraph() *DependencyGraph {
-	return &DependencyGraph{}
+	return &DependencyGraph{
+		nodeMap: make(map[string]bool),
+	}
 }
 
-// AddNode adds a node to the graph. Duplicate IDs are ignored.
+// AddNode adds a node to the graph. Duplicate IDs are ignored (O(1) lookup).
 func (g *DependencyGraph) AddNode(node Node) {
-	for _, n := range g.Nodes {
-		if n.ID == node.ID {
-			return
-		}
+	if g.nodeMap[node.ID] {
+		return
 	}
-
+	g.nodeMap[node.ID] = true
 	g.Nodes = append(g.Nodes, node)
 }
 
@@ -138,7 +139,7 @@ func addMessageNodes(g *DependencyGraph, pf *analyzer.ProtoFile, prefix string) 
 		})
 
 		for _, f := range msg.Fields {
-			if !isMessageType(f.Type) {
+			if !analyzer.IsMessageType(f.Type) {
 				continue
 			}
 
@@ -176,15 +177,4 @@ func resolveType(t, prefix string) string {
 	}
 
 	return t
-}
-
-// isMessageType returns true if the type is not a protobuf primitive.
-func isMessageType(t string) bool {
-	primitives := map[string]bool{
-		"double": true, "float": true, "int32": true, "int64": true,
-		"uint32": true, "uint64": true, "sint32": true, "sint64": true,
-		"fixed32": true, "fixed64": true, "sfixed32": true, "sfixed64": true,
-		"bool": true, "string": true, "bytes": true,
-	}
-	return !primitives[t] && t != ""
 }

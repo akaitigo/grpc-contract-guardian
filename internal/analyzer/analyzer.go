@@ -50,19 +50,23 @@ var (
 	packageRe = regexp.MustCompile(`^package\s+([\w.]+)\s*;`)
 	importRe  = regexp.MustCompile(`^import\s+"([^"]+)"\s*;`)
 	serviceRe = regexp.MustCompile(`^service\s+(\w+)\s*\{`)
-	rpcRe     = regexp.MustCompile(`^\s*rpc\s+(\w+)\s*\(\s*(\w+)\s*\)\s*returns\s*\(\s*([\w.]+)\s*\)`)
+	rpcRe     = regexp.MustCompile(`^\s*rpc\s+(\w+)\s*\(\s*(?:stream\s+)?(\w+)\s*\)\s*returns\s*\(\s*(?:stream\s+)?([\w.]+)\s*\)`)
 	messageRe = regexp.MustCompile(`^message\s+(\w+)\s*\{`)
 	fieldRe   = regexp.MustCompile(`^\s*(repeated\s+)?(\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(\d+)`)
 )
 
 // parseState holds mutable state during proto file parsing.
 type parseState struct {
-	pf         *ProtoFile
-	curSvc     *Service
-	curMsg     *Message
-	braceDepth int
-	inService  bool
-	inMessage  bool
+	pf             *ProtoFile
+	curSvc         *Service
+	curMsg         *Message
+	curMsgParent   *Message
+	braceDepth     int
+	msgStartDepth  int
+	inService      bool
+	inMessage      bool
+	inNestedMsg    bool
+	inBlockComment bool
 }
 
 // Analyze parses a .proto file and returns its structured representation.
@@ -78,6 +82,8 @@ func Analyze(path string) (*ProtoFile, error) {
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		line = s.stripBlockComments(line)
+
 		if line == "" || strings.HasPrefix(line, "//") || strings.HasPrefix(line, "syntax") {
 			continue
 		}
@@ -92,6 +98,42 @@ func Analyze(path string) (*ProtoFile, error) {
 	}
 
 	return s.pf, nil
+}
+
+// stripBlockComments handles /* ... */ block comments, returning the line
+// content outside of any comment blocks. Returns "" if the entire line is commented.
+func (s *parseState) stripBlockComments(line string) string {
+	// If we're inside a block comment, look for the end
+	if s.inBlockComment {
+		endIdx := strings.Index(line, "*/")
+		if endIdx == -1 {
+			return ""
+		}
+		s.inBlockComment = false
+		line = strings.TrimSpace(line[endIdx+2:])
+	}
+
+	// Strip any block comments that start on this line
+	for {
+		startIdx := strings.Index(line, "/*")
+		if startIdx == -1 {
+			break
+		}
+		before := line[:startIdx]
+		rest := line[startIdx+2:]
+		endIdx := strings.Index(rest, "*/")
+		if endIdx != -1 {
+			// Single-line block comment: remove it and continue scanning
+			line = strings.TrimSpace(before + " " + rest[endIdx+2:])
+		} else {
+			// Multi-line block comment starts here
+			s.inBlockComment = true
+			line = strings.TrimSpace(before)
+			break
+		}
+	}
+
+	return line
 }
 
 func (s *parseState) processLine(line string) {
@@ -121,6 +163,14 @@ func (s *parseState) processLine(line string) {
 }
 
 func (s *parseState) closeBlock() {
+	if s.inNestedMsg && s.curMsg != nil {
+		s.pf.Messages = append(s.pf.Messages, *s.curMsg)
+		s.curMsg = s.curMsgParent
+		s.curMsgParent = nil
+		s.inNestedMsg = false
+		return
+	}
+
 	if s.inService && s.curSvc != nil {
 		s.pf.Services = append(s.pf.Services, *s.curSvc)
 		s.curSvc = nil
@@ -144,7 +194,18 @@ func (s *parseState) parseContent(line string) {
 
 		if m := messageRe.FindStringSubmatch(line); m != nil {
 			s.inMessage = true
+			s.msgStartDepth = s.braceDepth
 			s.curMsg = &Message{Name: m[1]}
+			return
+		}
+	}
+
+	// Handle nested message inside a parent message
+	if s.inMessage && !s.inNestedMsg && s.curMsg != nil {
+		if m := messageRe.FindStringSubmatch(line); m != nil {
+			s.curMsgParent = s.curMsg
+			s.curMsg = &Message{Name: m[1]}
+			s.inNestedMsg = true
 			return
 		}
 	}
@@ -214,7 +275,7 @@ func (pf *ProtoFile) MessageTypes() []string {
 
 	for _, msg := range pf.Messages {
 		for _, f := range msg.Fields {
-			if isMessageType(f.Type) && !seen[f.Type] {
+			if IsMessageType(f.Type) && !seen[f.Type] {
 				seen[f.Type] = true
 				types = append(types, f.Type)
 			}
@@ -224,9 +285,9 @@ func (pf *ProtoFile) MessageTypes() []string {
 	return types
 }
 
-// isMessageType returns true if the type name looks like a message reference
+// IsMessageType returns true if the type name looks like a message reference
 // (starts with uppercase, not a primitive type).
-func isMessageType(t string) bool {
+func IsMessageType(t string) bool {
 	primitives := map[string]bool{
 		"double": true, "float": true, "int32": true, "int64": true,
 		"uint32": true, "uint64": true, "sint32": true, "sint64": true,
