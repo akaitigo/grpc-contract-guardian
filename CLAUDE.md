@@ -36,6 +36,5 @@
 - 構造定義: docs/hooks-structure.md
 
 ## 状態管理
-- progress.json: セッション履歴（JSON形式）
+- git log + GitHub Issues でセッション間の状態を管理
 - 開始: `bash .claude/startup.sh`
-- 終了: `bash .claude/session-end.sh "要約" "次アクション"`
