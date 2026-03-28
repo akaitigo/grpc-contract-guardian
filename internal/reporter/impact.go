@@ -52,16 +52,25 @@ func AnalyzeImpact(breaking *buf.BreakingReport, g *graph.DependencyGraph) *Impa
 	return report
 }
 
+// matchesEntity returns true if nodeID is an exact match or FQN suffix match for entity.
+// For example, entity "User" matches "example.v1.User" but not "example.v1.UserProfile".
+func matchesEntity(nodeID, entity string) bool {
+	if nodeID == entity {
+		return true
+	}
+	return strings.HasSuffix(nodeID, "."+entity)
+}
+
 // findDependentServices walks the graph backwards to find all services
 // that transitively depend on the given entity.
 func findDependentServices(g *graph.DependencyGraph, entity string) []string {
 	visited := make(map[string]bool)
 	var services []string
 
-	// Find all nodes that have edges pointing to the entity (or contain entity in ID)
+	// Find all nodes that have edges pointing to the entity (exact or FQN suffix match)
 	var queue []string
 	for _, e := range g.Edges {
-		if strings.Contains(e.To, entity) {
+		if matchesEntity(e.To, entity) {
 			if !visited[e.From] {
 				visited[e.From] = true
 				queue = append(queue, e.From)
@@ -97,7 +106,7 @@ func findDependentServices(g *graph.DependencyGraph, entity string) []string {
 func tracePath(g *graph.DependencyGraph, entity string) []string {
 	var paths []string
 	for _, e := range g.Edges {
-		if strings.Contains(e.To, entity) {
+		if matchesEntity(e.To, entity) {
 			paths = append(paths, fmt.Sprintf("%s -[%s]-> %s", e.From, e.Label, e.To))
 		}
 	}

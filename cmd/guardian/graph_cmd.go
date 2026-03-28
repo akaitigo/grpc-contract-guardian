@@ -37,7 +37,7 @@ func newGraphCmd() *cobra.Command {
 			g := graph.BuildFromProtoFiles(parsed)
 
 			switch output {
-			case "text":
+			case formatText:
 				return g.WriteText(os.Stdout)
 			case "dot":
 				return g.WriteDOT(os.Stdout)
@@ -47,7 +47,7 @@ func newGraphCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&output, "output", "text", "Output format: text, dot")
+	cmd.Flags().StringVar(&output, "output", formatText, "Output format: text, dot")
 	cmd.Flags().StringVar(&protoRoot, "proto-root", ".", "Root directory for .proto files")
 
 	return cmd

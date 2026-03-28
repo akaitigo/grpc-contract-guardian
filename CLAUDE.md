@@ -24,8 +24,6 @@
 - ADR: docs/adr/ 参照。新規決定はADRを書いてから実装
 - テスト: 機能追加時は必ずテストを同時に書く
 - lint設定の変更禁止（ADR必須）
-- CONTEXT.json を更新してからセッションを終了する
-
 ## 禁止事項
 - any型 / 不要なinterface{} → 具体型またはジェネリクス
 - fmt.Println のコミット（log パッケージを使用）
@@ -38,7 +36,6 @@
 - 構造定義: docs/hooks-structure.md
 
 ## 状態管理
-- CONTEXT.json: セッション間状態（目標・次アクション）
 - progress.json: セッション履歴（JSON形式）
 - 開始: `bash .claude/startup.sh`
 - 終了: `bash .claude/session-end.sh "要約" "次アクション"`

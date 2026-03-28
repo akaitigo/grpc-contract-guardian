@@ -19,7 +19,7 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v1.64.8
 
   test:
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
           go-version-file: go.mod
       - run: make build
       - name: Smoke test
-        run: ./bin/guardian --help || true
+        run: ./bin/guardian --help
 
   e2e:
     runs-on: ubuntu-latest
@@ -56,6 +56,6 @@ jobs:
       - run: make build
       - name: Install bats
         run: |
-          git clone https://github.com/bats-core/bats-core.git /tmp/bats
+          git clone --branch v1.11.1 --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
           sudo /tmp/bats/install.sh /usr/local
       - run: bats test/cli.bats

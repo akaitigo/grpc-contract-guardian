@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/akaitigo/grpc-contract-guardian/internal/analyzer"
@@ -13,6 +15,14 @@ import (
 	"github.com/akaitigo/grpc-contract-guardian/internal/reporter"
 	"github.com/spf13/cobra"
 )
+
+const (
+	formatText   = "text"
+	formatGitHub = "github"
+)
+
+// branchNameRe validates git branch names (no spaces, control characters, or special sequences).
+var branchNameRe = regexp.MustCompile(`^[a-zA-Z0-9._\-/]+$`)
 
 func newCheckCmd() *cobra.Command {
 	var (
@@ -29,6 +39,22 @@ func newCheckCmd() *cobra.Command {
 		Short: "Run breaking change detection and show impact",
 		Long:  "Runs buf breaking against the specified ref, analyzes the dependency graph, and reports the impact of breaking changes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate --against flag
+			if !branchNameRe.MatchString(against) {
+				return fmt.Errorf("invalid branch name for --against: %q", against)
+			}
+
+			// Validate --repo flag when github format is used
+			if format == formatGitHub {
+				if repo == "" {
+					return fmt.Errorf("--repo is required for github format")
+				}
+				parts := strings.SplitN(repo, "/", 2)
+				if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+					return fmt.Errorf("--repo must be in owner/repo format (e.g., myorg/myrepo), got %q", repo)
+				}
+			}
+
 			// 1. Run buf breaking
 			bufOutput, err := runBufBreaking(against, protoRoot)
 			if err != nil {
@@ -59,16 +85,13 @@ func newCheckCmd() *cobra.Command {
 
 			// 5. Output
 			switch format {
-			case "text":
+			case formatText:
 				return reporter.WriteImpactText(os.Stdout, impactReport)
-			case "github":
+			case formatGitHub:
 				if prNumber == 0 {
 					return fmt.Errorf("--pr is required for github format")
 				}
 				parts := strings.SplitN(repo, "/", 2)
-				if len(parts) != 2 {
-					return fmt.Errorf("--repo must be owner/repo format")
-				}
 				body, err := reporter.PostToGitHubPR(impactReport, parts[0], parts[1], prNumber, dryRun)
 				if err != nil {
 					return err
@@ -86,7 +109,7 @@ func newCheckCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&against, "against", "main", "Git ref to compare against")
-	cmd.Flags().StringVar(&format, "format", "text", "Output format: text, github")
+	cmd.Flags().StringVar(&format, "format", formatText, "Output format: text, github")
 	cmd.Flags().IntVar(&prNumber, "pr", 0, "GitHub PR number (required for github format)")
 	cmd.Flags().StringVar(&repo, "repo", "", "GitHub repository (owner/repo)")
 	cmd.Flags().StringVar(&protoRoot, "proto-root", ".", "Root directory for .proto files")
@@ -100,7 +123,8 @@ func runBufBreaking(against, protoRoot string) (string, error) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		// buf breaking returns exit code 1 when breaking changes are found
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
 			return string(out), nil
 		}
 		// buf not installed or other error
