@@ -285,14 +285,16 @@ func (pf *ProtoFile) MessageTypes() []string {
 	return types
 }
 
+// protoPrimitives is the set of protobuf scalar types, initialized once at package level.
+var protoPrimitives = map[string]bool{
+	"double": true, "float": true, "int32": true, "int64": true,
+	"uint32": true, "uint64": true, "sint32": true, "sint64": true,
+	"fixed32": true, "fixed64": true, "sfixed32": true, "sfixed64": true,
+	"bool": true, "string": true, "bytes": true,
+}
+
 // IsMessageType returns true if the type name looks like a message reference
 // (starts with uppercase, not a primitive type).
 func IsMessageType(t string) bool {
-	primitives := map[string]bool{
-		"double": true, "float": true, "int32": true, "int64": true,
-		"uint32": true, "uint64": true, "sint32": true, "sint64": true,
-		"fixed32": true, "fixed64": true, "sfixed32": true, "sfixed64": true,
-		"bool": true, "string": true, "bytes": true,
-	}
-	return !primitives[t] && t != ""
+	return !protoPrimitives[t] && t != ""
 }

@@ -89,6 +89,21 @@ internal/
   reporter/            # テキスト/GitHubレポート生成
 ```
 
+## Known Limitations
+
+### Regex-based Proto Parser
+
+guardian uses a regex-based parser for `.proto` files instead of a full protobuf compiler (e.g., protocompile). This means:
+
+- **Nested messages beyond 1 level** are not fully supported
+- **`oneof`**, **`map`**, and **`extend`** blocks are not parsed
+- **Comments inside block structures** may cause incorrect parsing in edge cases
+- **Proto files with unusual formatting** (e.g., multiple statements per line) may not parse correctly
+
+This is a deliberate MVP trade-off documented in [ADR-001](docs/adr/001-regex-parser-for-mvp.md). A migration to protocompile is planned for v2.
+
+If you encounter parsing issues, please file a [bug report](.github/ISSUE_TEMPLATE/bug_report.md) with the `.proto` file content.
+
 ## License
 
 MIT

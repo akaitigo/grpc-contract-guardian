@@ -26,17 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/post-lint.sh"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash -c 'cp CONTEXT.json CONTEXT.backup.json 2>/dev/null || true; cp progress.json progress.backup.json 2>/dev/null || true'"
+            "command": "bash .claude/hooks/post-lint.sh"
           }
         ]
       }

@@ -73,6 +73,10 @@ func newCheckCmd() *cobra.Command {
 				return fmt.Errorf("finding proto files: %w", err)
 			}
 
+			if len(protoFiles) == 0 {
+				return fmt.Errorf("no .proto files found in %q. Use --proto-root to specify the directory containing your proto files", protoRoot)
+			}
+
 			parsed, err := analyzer.AnalyzeAll(protoFiles)
 			if err != nil {
 				return fmt.Errorf("analyzing proto files: %w", err)
@@ -122,16 +126,22 @@ func runBufBreaking(against, protoRoot string) (string, error) {
 	cmd := exec.Command("buf", "breaking", protoRoot, "--against", fmt.Sprintf(".git#branch=%s", against)) // #nosec G204 -- arguments from trusted CLI flags
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		// buf breaking returns exit code 1 when breaking changes are found
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
-			return string(out), nil
+		if errors.As(err, &exitErr) {
+			switch exitErr.ExitCode() {
+			case 1:
+				// buf breaking returns exit code 1 when breaking changes are found
+				return string(out), nil
+			default:
+				// Exit code 2+ indicates a buf configuration or runtime error
+				return "", fmt.Errorf("buf breaking failed (exit code %d): %s", exitErr.ExitCode(), strings.TrimSpace(string(out)))
+			}
 		}
-		// buf not installed or other error
+		// buf not installed or other OS-level error
 		if strings.Contains(string(out), "not found") || strings.Contains(err.Error(), "not found") {
 			return "", fmt.Errorf("buf is not installed. Install from https://buf.build/docs/installation")
 		}
-		return string(out), nil
+		return "", fmt.Errorf("buf breaking: %w\n%s", err, out)
 	}
 	return string(out), nil
 }
