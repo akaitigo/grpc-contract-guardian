@@ -12,13 +12,13 @@ import (
 
 // mockRunner records command invocations and returns preconfigured responses.
 type mockRunner struct {
-	calls   [][]string
 	outputs map[string]mockResult
+	calls   [][]string
 }
 
 type mockResult struct {
-	output []byte
 	err    error
+	output []byte
 }
 
 func newMockRunner() *mockRunner {
@@ -41,102 +41,84 @@ func (m *mockRunner) Run(name string, args ...string) ([]byte, error) {
 	return []byte(""), nil
 }
 
-func TestPostToGitHubPR_CreateComment(t *testing.T) {
-	t.Parallel()
-
-	mock := newMockRunner()
-	// No existing comment found
-	mock.outputs["issues/1/comments"] = mockResult{output: []byte(""), err: nil}
-
-	reporter.SetCommandRunner(mock)
-	t.Cleanup(func() { reporter.SetCommandRunner(&reporter.ExecCommandRunner{}) })
-
-	breaking := &buf.BreakingReport{TotalCount: 0}
-	g := graph.NewGraph()
-	report := reporter.AnalyzeImpact(breaking, g)
-
-	body, err := reporter.PostToGitHubPR(report, "testowner", "testrepo", 1, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if !strings.Contains(body, "grpc-contract-guardian") {
-		t.Error("body missing guardian marker")
-	}
-
-	// Verify that gh api was called to create a comment
-	found := false
-	for _, call := range mock.calls {
+func (m *mockRunner) hasCallContaining(substrs ...string) bool {
+	for _, call := range m.calls {
 		joined := strings.Join(call, " ")
-		if strings.Contains(joined, "issues/1/comments") && strings.Contains(joined, "body=") {
-			found = true
-			break
+		allMatch := true
+		for _, sub := range substrs {
+			if !strings.Contains(joined, sub) {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			return true
 		}
 	}
-	if !found {
-		t.Error("expected gh api create comment call")
-	}
+	return false
 }
 
-func TestPostToGitHubPR_UpdateExistingComment(t *testing.T) {
-	t.Parallel()
-
-	mock := newMockRunner()
-	// Existing comment found with ID 42
-	mock.outputs["--jq"] = mockResult{output: []byte("42"), err: nil}
-
+func setupMockRunner(t *testing.T, mock *mockRunner) {
+	t.Helper()
 	reporter.SetCommandRunner(mock)
 	t.Cleanup(func() { reporter.SetCommandRunner(&reporter.ExecCommandRunner{}) })
+}
 
+func buildEmptyReport() *reporter.ImpactReport {
+	return reporter.AnalyzeImpact(&buf.BreakingReport{TotalCount: 0}, graph.NewGraph())
+}
+
+func buildReportWithChange() *reporter.ImpactReport {
 	breaking := &buf.BreakingReport{
 		TotalCount: 1,
 		Changes: []buf.BreakingChange{
 			{File: "a.proto", Line: 1, Category: buf.CategoryFieldRemoved, Severity: buf.SeverityHigh, Description: "field removed"},
 		},
 	}
-	g := graph.NewGraph()
-	report := reporter.AnalyzeImpact(breaking, g)
+	return reporter.AnalyzeImpact(breaking, graph.NewGraph())
+}
 
-	body, err := reporter.PostToGitHubPR(report, "testowner", "testrepo", 5, false)
+func TestGitHubReporter_CreateComment(t *testing.T) {
+	mock := newMockRunner()
+	mock.outputs["issues/1/comments"] = mockResult{output: []byte(""), err: nil}
+	setupMockRunner(t, mock)
+
+	body, err := reporter.PostToGitHubPR(buildEmptyReport(), "testowner", "testrepo", 1, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if !strings.Contains(body, "grpc-contract-guardian") {
 		t.Error("body missing guardian marker")
 	}
-
-	// Verify that gh api was called to update (PATCH) the comment
-	found := false
-	for _, call := range mock.calls {
-		joined := strings.Join(call, " ")
-		if strings.Contains(joined, "PATCH") && strings.Contains(joined, "comments/42") {
-			found = true
-			break
-		}
+	if !mock.hasCallContaining("issues/1/comments", "body=") {
+		t.Error("expected gh api create comment call")
 	}
-	if !found {
+}
+
+func TestGitHubReporter_UpdateExistingComment(t *testing.T) {
+	mock := newMockRunner()
+	mock.outputs["--jq"] = mockResult{output: []byte("42"), err: nil}
+	setupMockRunner(t, mock)
+
+	body, err := reporter.PostToGitHubPR(buildReportWithChange(), "testowner", "testrepo", 5, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(body, "grpc-contract-guardian") {
+		t.Error("body missing guardian marker")
+	}
+	if !mock.hasCallContaining("PATCH", "comments/42") {
 		t.Error("expected gh api update comment call with PATCH")
 	}
 }
 
-func TestPostToGitHubPR_CreateCommentError(t *testing.T) {
-	t.Parallel()
-
+func TestGitHubReporter_CreateCommentError(t *testing.T) {
 	mock := newMockRunner()
-	// findExistingComment returns empty (no existing comment)
 	mock.outputs["--jq"] = mockResult{output: []byte(""), err: nil}
-	// createComment fails
 	mock.outputs["body="] = mockResult{output: []byte("forbidden"), err: fmt.Errorf("exit status 1")}
+	setupMockRunner(t, mock)
 
-	reporter.SetCommandRunner(mock)
-	t.Cleanup(func() { reporter.SetCommandRunner(&reporter.ExecCommandRunner{}) })
-
-	breaking := &buf.BreakingReport{TotalCount: 0}
-	g := graph.NewGraph()
-	report := reporter.AnalyzeImpact(breaking, g)
-
-	_, err := reporter.PostToGitHubPR(report, "testowner", "testrepo", 1, false)
+	_, err := reporter.PostToGitHubPR(buildEmptyReport(), "testowner", "testrepo", 1, false)
 	if err == nil {
 		t.Fatal("expected error when create comment fails")
 	}
