@@ -5,6 +5,7 @@ package buf
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -47,8 +48,9 @@ type BreakingChange struct {
 
 // BreakingReport is the structured result of parsing buf breaking output.
 type BreakingReport struct {
-	Changes    []BreakingChange
-	TotalCount int
+	Changes      []BreakingChange
+	TotalCount   int
+	SkippedLines int
 }
 
 // categorySeverity maps categories to their default severity.
@@ -103,6 +105,7 @@ func ParseOutput(rawOutput string) (*BreakingReport, error) {
 	}
 
 	var changes []BreakingChange
+	var skipped int
 	scanner := bufio.NewScanner(strings.NewReader(rawOutput))
 
 	for scanner.Scan() {
@@ -113,6 +116,8 @@ func ParseOutput(rawOutput string) (*BreakingReport, error) {
 
 		change, err := parseLine(line)
 		if err != nil {
+			skipped++
+			log.Printf("warning: skipped unparseable buf output line: %s", line)
 			continue
 		}
 
@@ -124,8 +129,9 @@ func ParseOutput(rawOutput string) (*BreakingReport, error) {
 	}
 
 	return &BreakingReport{
-		Changes:    changes,
-		TotalCount: len(changes),
+		Changes:      changes,
+		TotalCount:   len(changes),
+		SkippedLines: skipped,
 	}, nil
 }
 
@@ -187,8 +193,29 @@ func classifyChange(message string) ChangeCategory {
 
 // extractEntity attempts to extract the affected proto entity name from the message.
 // buf messages typically contain quoted entity names like `"MyService.MyMethod"`.
-// Field numbers (pure digits) are skipped to find the actual entity name.
+// For field-level changes (messages containing `on message "X"`), the message name
+// is extracted as the entity. For other changes, field numbers (pure digits) and
+// field names are skipped to find the service/method/message entity name.
 func extractEntity(message string) string {
+	// For field-level changes, prefer the message name from `on message "X"` pattern.
+	if idx := strings.Index(message, "on message \""); idx != -1 {
+		rest := message[idx+len("on message \""):]
+		end := strings.Index(rest, "\"")
+		if end != -1 {
+			return rest[:end]
+		}
+	}
+
+	// For enum value changes, prefer the enum name from `on enum "X"` pattern.
+	if idx := strings.Index(message, "on enum \""); idx != -1 {
+		rest := message[idx+len("on enum \""):]
+		end := strings.Index(rest, "\"")
+		if end != -1 {
+			return rest[:end]
+		}
+	}
+
+	// Fallback: return the first non-numeric quoted value.
 	remaining := message
 	for {
 		start := strings.Index(remaining, "\"")

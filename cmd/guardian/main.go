@@ -25,7 +25,7 @@ func newRootCmd() *cobra.Command {
 			return cmd.Help()
 		},
 		SilenceUsage:  true,
-		SilenceErrors: true,
+		SilenceErrors: false,
 	}
 
 	root.AddCommand(newCheckCmd())
@@ -40,7 +40,7 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print guardian version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("guardian %s\n", version)
+			fmt.Fprintf(cmd.OutOrStdout(), "guardian %s\n", version)
 		},
 	}
 }
