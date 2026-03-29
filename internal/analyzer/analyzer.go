@@ -50,7 +50,7 @@ var (
 	packageRe = regexp.MustCompile(`^package\s+([\w.]+)\s*;`)
 	importRe  = regexp.MustCompile(`^import\s+"([^"]+)"\s*;`)
 	serviceRe = regexp.MustCompile(`^service\s+(\w+)\s*\{`)
-	rpcRe     = regexp.MustCompile(`^\s*rpc\s+(\w+)\s*\(\s*(?:stream\s+)?(\w+)\s*\)\s*returns\s*\(\s*(?:stream\s+)?([\w.]+)\s*\)`)
+	rpcRe     = regexp.MustCompile(`^\s*rpc\s+(\w+)\s*\(\s*(?:stream\s+)?([\w.]+)\s*\)\s*returns\s*\(\s*(?:stream\s+)?([\w.]+)\s*\)`)
 	messageRe = regexp.MustCompile(`^message\s+(\w+)\s*\{`)
 	fieldRe   = regexp.MustCompile(`^\s*(repeated\s+)?(\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(\d+)`)
 )

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,12 +9,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/akaitigo/grpc-contract-guardian/internal/analyzer"
 	"github.com/akaitigo/grpc-contract-guardian/internal/buf"
 	"github.com/akaitigo/grpc-contract-guardian/internal/graph"
 	"github.com/akaitigo/grpc-contract-guardian/internal/reporter"
 	"github.com/spf13/cobra"
+)
+
+const (
+	// defaultExecTimeout is the maximum duration for external commands (buf, gh).
+	defaultExecTimeout = 2 * time.Minute
 )
 
 const (
@@ -90,7 +97,7 @@ func newCheckCmd() *cobra.Command {
 			// 5. Output
 			switch format {
 			case formatText:
-				return reporter.WriteImpactText(os.Stdout, impactReport)
+				return reporter.WriteImpactText(cmd.OutOrStdout(), impactReport)
 			case formatGitHub:
 				if prNumber == 0 {
 					return fmt.Errorf("--pr is required for github format")
@@ -101,9 +108,9 @@ func newCheckCmd() *cobra.Command {
 					return err
 				}
 				if dryRun {
-					fmt.Print(body)
+					fmt.Fprint(cmd.OutOrStdout(), body)
 				} else {
-					fmt.Fprintf(os.Stderr, "Posted impact report to PR #%d\n", prNumber)
+					fmt.Fprintf(cmd.ErrOrStderr(), "Posted impact report to PR #%d\n", prNumber)
 				}
 				return nil
 			default:
@@ -123,7 +130,10 @@ func newCheckCmd() *cobra.Command {
 }
 
 func runBufBreaking(against, protoRoot string) (string, error) {
-	cmd := exec.Command("buf", "breaking", protoRoot, "--against", fmt.Sprintf(".git#branch=%s", against)) // #nosec G204 -- arguments from trusted CLI flags
+	ctx, cancel := context.WithTimeout(context.Background(), defaultExecTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "buf", "breaking", protoRoot, "--against", fmt.Sprintf(".git#branch=%s", against)) // #nosec G204 -- arguments from trusted CLI flags
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		var exitErr *exec.ExitError

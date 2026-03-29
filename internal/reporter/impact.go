@@ -52,11 +52,17 @@ func AnalyzeImpact(breaking *buf.BreakingReport, g *graph.DependencyGraph) *Impa
 	return report
 }
 
-// matchesEntity returns true if nodeID is an exact match or FQN suffix match for entity.
-// For example, entity "User" matches "example.v1.User" but not "example.v1.UserProfile".
+// matchesEntity returns true if nodeID matches entity.
+// If entity is already a FQN (contains "."), only exact match is accepted.
+// Otherwise, nodeID must be an exact match or end with ".<entity>" (suffix match),
+// preventing partial matches like "UserProfile" matching entity "User".
 func matchesEntity(nodeID, entity string) bool {
 	if nodeID == entity {
 		return true
+	}
+	// If entity is a FQN, require exact match only (already checked above).
+	if strings.Contains(entity, ".") {
+		return false
 	}
 	return strings.HasSuffix(nodeID, "."+entity)
 }

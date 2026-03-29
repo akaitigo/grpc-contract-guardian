@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package example.fqn.v1;
+
+service UserService {
+  rpc GetUser(common.v1.GetUserRequest) returns (common.v1.GetUserResponse);
+}

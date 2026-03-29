@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/akaitigo/grpc-contract-guardian/internal/analyzer"
 	"github.com/akaitigo/grpc-contract-guardian/internal/graph"
@@ -38,9 +37,9 @@ func newGraphCmd() *cobra.Command {
 
 			switch output {
 			case formatText:
-				return g.WriteText(os.Stdout)
+				return g.WriteText(cmd.OutOrStdout())
 			case "dot":
-				return g.WriteDOT(os.Stdout)
+				return g.WriteDOT(cmd.OutOrStdout())
 			default:
 				return fmt.Errorf("unsupported output format: %s (use text or dot)", output)
 			}

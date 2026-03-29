@@ -2,9 +2,17 @@ package reporter
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
+	"time"
+)
+
+const (
+	// defaultGHTimeout is the maximum duration for gh API commands.
+	defaultGHTimeout = 30 * time.Second
 )
 
 const commentMarker = "<!-- grpc-contract-guardian -->"
@@ -18,9 +26,12 @@ type CommandRunner interface {
 // ExecCommandRunner is the default CommandRunner that delegates to os/exec.
 type ExecCommandRunner struct{}
 
-// Run executes a command using os/exec.
+// Run executes a command using os/exec with a timeout.
 func (r *ExecCommandRunner) Run(name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...) // #nosec G204 -- arguments from trusted CLI flags
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGHTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- arguments from trusted CLI flags
 	return cmd.CombinedOutput()
 }
 
@@ -53,7 +64,13 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 	}
 
 	// Check for existing guardian comment
-	existingID := findExistingComment(owner, repo, prNumber)
+	existingID, err := findExistingComment(owner, repo, prNumber)
+	if err != nil {
+		// If we fail to list comments, fall through to create a new one.
+		// This avoids duplicate comments in rare cases, but is more robust
+		// than failing the entire operation.
+		log.Printf("warning: failed to check for existing comment: %v", err)
+	}
 
 	if existingID != "" {
 		return commentBody, updateComment(owner, repo, existingID, commentBody)
@@ -62,16 +79,16 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 	return commentBody, createComment(owner, repo, prNumber, commentBody)
 }
 
-func findExistingComment(owner, repo string, prNumber int) string {
+func findExistingComment(owner, repo string, prNumber int) (string, error) {
 	out, err := defaultRunner.Run("gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"--jq", fmt.Sprintf(`.[] | select(.body | contains(%q)) | .id`, commentMarker),
 	)
 	if err != nil {
-		return "" // not found is OK
+		return "", fmt.Errorf("listing PR comments: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
 
-	return strings.TrimSpace(string(out))
+	return strings.TrimSpace(string(out)), nil
 }
 
 func createComment(owner, repo string, prNumber int, body string) error {

@@ -158,3 +158,29 @@ func TestAnalyzeAll(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 }
+
+func TestAnalyze_FQNTypes(t *testing.T) {
+	t.Parallel()
+
+	result, err := analyzer.Analyze("../../testdata/fqn_types.proto")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(result.Services))
+	}
+
+	svc := result.Services[0]
+	if len(svc.Methods) != 1 {
+		t.Fatalf("expected 1 method, got %d", len(svc.Methods))
+	}
+
+	m := svc.Methods[0]
+	if m.InputType != "common.v1.GetUserRequest" {
+		t.Errorf("InputType = %q, want %q", m.InputType, "common.v1.GetUserRequest")
+	}
+	if m.OutputType != "common.v1.GetUserResponse" {
+		t.Errorf("OutputType = %q, want %q", m.OutputType, "common.v1.GetUserResponse")
+	}
+}

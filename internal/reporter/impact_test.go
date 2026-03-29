@@ -153,3 +153,60 @@ func TestPostToGitHubPR_DryRun(t *testing.T) {
 		t.Error("dry-run body missing marker")
 	}
 }
+
+func TestAnalyzeImpact_FQNEntityDoesNotSuffixMatch(t *testing.T) {
+	t.Parallel()
+
+	// When entity is already a FQN, only exact match should work.
+	g := graph.NewGraph()
+	g.AddNode(graph.Node{ID: "example.v1.UserService", Kind: "service", Label: "UserService"})
+	g.AddNode(graph.Node{ID: "other.v1.User", Kind: "message", Label: "User"})
+	g.AddEdge(graph.Edge{From: "example.v1.UserService", To: "other.v1.User", Label: "field:user"})
+
+	breaking := &buf.BreakingReport{
+		TotalCount: 1,
+		Changes: []buf.BreakingChange{
+			{
+				File:           "user/v1/user.proto",
+				Category:       buf.CategoryFieldRemoved,
+				Severity:       buf.SeverityHigh,
+				Description:    "field removed",
+				AffectedEntity: "example.v1.User", // FQN entity
+			},
+		},
+	}
+
+	report := reporter.AnalyzeImpact(breaking, g)
+	// "example.v1.User" should NOT match "other.v1.User"
+	if len(report.Impacts[0].AffectedServices) != 0 {
+		t.Errorf("expected 0 affected services for FQN mismatch, got %v", report.Impacts[0].AffectedServices)
+	}
+}
+
+func TestAnalyzeImpact_SimpleEntitySuffixMatches(t *testing.T) {
+	t.Parallel()
+
+	// When entity is a simple name, suffix match should work.
+	g := graph.NewGraph()
+	g.AddNode(graph.Node{ID: "example.v1.UserService", Kind: "service", Label: "UserService"})
+	g.AddNode(graph.Node{ID: "example.v1.User", Kind: "message", Label: "User"})
+	g.AddEdge(graph.Edge{From: "example.v1.UserService", To: "example.v1.User", Label: "field:user"})
+
+	breaking := &buf.BreakingReport{
+		TotalCount: 1,
+		Changes: []buf.BreakingChange{
+			{
+				File:           "user/v1/user.proto",
+				Category:       buf.CategoryFieldRemoved,
+				Severity:       buf.SeverityHigh,
+				Description:    "field removed",
+				AffectedEntity: "User", // simple name
+			},
+		},
+	}
+
+	report := reporter.AnalyzeImpact(breaking, g)
+	if len(report.Impacts[0].AffectedServices) != 1 {
+		t.Errorf("expected 1 affected service for simple name match, got %v", report.Impacts[0].AffectedServices)
+	}
+}

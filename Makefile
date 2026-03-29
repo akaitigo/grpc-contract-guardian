@@ -1,4 +1,4 @@
-.PHONY: build test lint format check clean tidy install
+.PHONY: build test lint format check clean tidy install e2e
 
 # Go build settings
 BINARY_NAME := guardian
@@ -9,8 +9,16 @@ BUILD_DIR := bin
 build:
 	go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/guardian/
 
-test:
+test: build
 	go test -v -race -count=1 -coverprofile=coverage.out ./...
+	@if command -v bats >/dev/null 2>&1; then \
+		bats test/cli.bats; \
+	else \
+		echo "bats not found, skipping E2E tests"; \
+	fi
+
+e2e: build
+	bats test/cli.bats
 
 lint:
 	golangci-lint run ./...
