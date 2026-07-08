@@ -80,7 +80,8 @@ func PostToGitHubPR(report *ImpactReport, owner, repo string, prNumber int, dryR
 }
 
 func findExistingComment(owner, repo string, prNumber int) (string, error) {
-	out, err := defaultRunner.Run("gh", "api",
+	out, err := defaultRunner.Run(
+		"gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"--jq", fmt.Sprintf(`.[] | select(.body | contains(%q)) | .id`, commentMarker),
 	)
@@ -92,7 +93,8 @@ func findExistingComment(owner, repo string, prNumber int) (string, error) {
 }
 
 func createComment(owner, repo string, prNumber int, body string) error {
-	out, err := defaultRunner.Run("gh", "api",
+	out, err := defaultRunner.Run(
+		"gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/%d/comments", owner, repo, prNumber),
 		"-f", fmt.Sprintf("body=%s", body),
 	)
@@ -104,7 +106,8 @@ func createComment(owner, repo string, prNumber int, body string) error {
 }
 
 func updateComment(owner, repo, commentID, body string) error {
-	out, err := defaultRunner.Run("gh", "api",
+	out, err := defaultRunner.Run(
+		"gh", "api",
 		fmt.Sprintf("repos/%s/%s/issues/comments/%s", owner, repo, commentID),
 		"-X", "PATCH",
 		"-f", fmt.Sprintf("body=%s", body),
